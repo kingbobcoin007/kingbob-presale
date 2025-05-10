@@ -1,0 +1,190 @@
+// src/components/DashboardSection.tsx
+import React, { useState, useEffect } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db, usersCollection } from '../firebase';
+import { PACKAGES } from '../utils/ethersHelpers';
+
+interface DashboardSectionProps {
+  userAddress: string;
+}
+
+interface UserData {
+  address: string;
+  package: string | null;
+  tokenBalance: number;
+  refillCount: number;
+  claimEnabled: boolean;
+  referralRewards: number;
+}
+
+const DashboardSection: React.FC<DashboardSectionProps> = ({ userAddress }) => {
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!userAddress) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const userRef = doc(db, usersCollection, userAddress);
+        const userSnap = await getDoc(userRef);
+        
+        if (userSnap.exists()) {
+          setUserData(userSnap.data() as UserData);
+        } else {
+          setUserData(null);
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [userAddress]);
+
+  const getUserPackage = () => {
+    if (!userData?.package) return null;
+    return PACKAGES.find(pkg => pkg.id === userData.package);
+  };
+
+  const handleClaim = () => {
+    // This would be implemented when claiming is enabled
+    alert('Claiming is not yet available. Please wait for the official launch.');
+  };
+
+  if (!userAddress) {
+    return (
+      <section className="py-12 px-4">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl font-bold text-red-800 mb-4">Your Dashboard</h2>
+          <p className="text-gray-600 mb-8">Connect your wallet to view your dashboard</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <section className="py-12 px-4">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl font-bold text-red-800 mb-4">Your Dashboard</h2>
+          <p className="text-gray-600 mb-8">Loading your data...</p>
+        </div>
+      </section>
+    );
+  }
+
+  const userPackage = getUserPackage();
+
+  return (
+    <section className="py-12 px-4">
+      <div className="max-w-4xl mx-auto">
+        <h2 className="text-3xl font-bold text-center mb-2 text-red-800">Your Royal Dashboard</h2>
+        <p className="text-center text-gray-600 mb-8">Track your presale participation and rewards</p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="bg-gradient-to-r from-red-50 to-yellow-50 rounded-xl shadow-lg p-6 border border-yellow-200">
+            <h3 className="text-xl font-bold text-red-800 mb-4">Package Details</h3>
+            
+            {userData?.package ? (
+              <div>
+                <div className="flex justify-between mb-3">
+                  <span className="text-gray-600">Package:</span>
+                  <span className="font-bold">{userPackage?.name || 'Unknown'}</span>
+                </div>
+                <div className="flex justify-between mb-3">
+                  <span className="text-gray-600">Price Paid:</span>
+                  <span className="font-bold">${userPackage?.priceUSD || 0} USD</span>
+                </div>
+                <div className="flex justify-between mb-3">
+                  <span className="text-gray-600">Tokens Purchased:</span>
+                  <span className="font-bold">{userPackage?.tokenAmount?.toLocaleString() || 0}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                <p>You haven't purchased a package yet</p>
+                <button
+                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                  className="mt-4 bg-gradient-to-r from-red-700 to-yellow-500 text-white py-2 px-4 rounded-lg font-bold shadow-md hover:from-red-600 hover:to-yellow-400 transition-all duration-300"
+                >
+                  View Packages
+                </button>
+              </div>
+            )}
+          </div>
+          
+          <div className="bg-gradient-to-r from-red-50 to-yellow-50 rounded-xl shadow-lg p-6 border border-yellow-200">
+            <h3 className="text-xl font-bold text-red-800 mb-4">Token Balance</h3>
+            
+            <div className="text-center py-4">
+              <p className="text-4xl font-bold text-yellow-600 mb-2">
+                {(userData?.tokenBalance || 0).toLocaleString()}
+              </p>
+              <p className="text-gray-600">Total Tokens</p>
+              
+              {userData?.referralRewards > 0 && (
+                <div className="mt-4 p-3 bg-yellow-100 rounded-lg">
+                  <p className="text-sm text-gray-700">
+                    Includes <span className="font-bold">{userData.referralRewards}</span> tokens from referrals
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          {userData?.package === 'standard' && (
+            <div className="bg-gradient-to-r from-red-50 to-yellow-50 rounded-xl shadow-lg p-6 border border-yellow-200">
+              <h3 className="text-xl font-bold text-red-800 mb-4">Refill Tracker</h3>
+              
+              <div className="flex items-center justify-center">
+                <div className="w-32 h-32 rounded-full flex items-center justify-center border-8 border-yellow-200 bg-white">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-red-800">{userData?.refillCount || 0}</p>
+                    <p className="text-sm text-gray-600">Remaining</p>
+                  </div>
+                </div>
+              </div>
+              
+              <p className="text-center mt-4 text-sm text-gray-600">
+                Standard package includes 1 token refill after launch
+              </p>
+            </div>
+          )}
+          
+          <div className="bg-gradient-to-r from-red-50 to-yellow-50 rounded-xl shadow-lg p-6 border border-yellow-200">
+            <h3 className="text-xl font-bold text-red-800 mb-4">Claim Tokens</h3>
+            
+            <div className="text-center py-4">
+              <button
+                onClick={handleClaim}
+                disabled={!userData?.claimEnabled}
+                className={`w-full py-3 px-6 rounded-lg font-bold shadow-md ${
+                  userData?.claimEnabled
+                    ? 'bg-gradient-to-r from-red-700 to-yellow-500 text-white hover:from-red-600 hover:to-yellow-400'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                } transition-all duration-300`}
+              >
+                {userData?.claimEnabled ? 'Claim Now' : 'Claiming Not Available'}
+              </button>
+              
+              <p className="mt-4 text-sm text-gray-600">
+                Token claiming will be enabled after the official launch
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default DashboardSection;

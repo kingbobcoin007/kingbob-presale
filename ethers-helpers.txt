@@ -1,0 +1,115 @@
+// src/utils/ethersHelpers.ts
+import { ethers } from 'ethers';
+import { db, usersCollection } from '../firebase';
+import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+
+// Define package prices in BNB (using current BNB/USD rate)
+export const PACKAGES = [
+  { id: 'basic', name: 'Basic', priceUSD: 100, priceBNB: '0.25', tokenAmount: 1000, refillCount: 0 },
+  { id: 'standard', name: 'Standard', priceUSD: 200, priceBNB: '0.5', tokenAmount: 2200, refillCount: 1 },
+  { id: 'premium', name: 'Premium', priceUSD: 500, priceBNB: '1.25', tokenAmount: 6000, refillCount: 0 },
+  { id: 'royal', name: 'Royal', priceUSD: 1000, priceBNB: '2.5', tokenAmount: 13000, refillCount: 0 },
+];
+
+// Referral reward in tokens
+export const REFERRAL_REWARD = 200; // $20 worth of tokens
+
+// Get ethers provider
+export const getProvider = () => {
+  if (window.ethereum) {
+    return new ethers.BrowserProvider(window.ethereum);
+  }
+  throw new Error('MetaMask not detected');
+};
+
+// Connect wallet
+export const connectWallet = async () => {
+  if (!window.ethereum) throw new Error('MetaMask not detected');
+  
+  try {
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    const address = accounts[0];
+    
+    // Check if user exists in Firestore, if not create a new record
+    const userRef = doc(db, usersCollection, address);
+    const userSnap = await getDoc(userRef);
+    
+    if (!userSnap.exists()) {
+      // Get referrer from URL if available
+      const urlParams = new URLSearchParams(window.location.search);
+      const referrer = urlParams.get('ref');
+      
+      // Create new user
+      await setDoc(userRef, {
+        address,
+        referrer: referrer || null,
+        tokenBalance: 0,
+        package: null,
+        refillCount: 0,
+        referralRewards: 0,
+        claimEnabled: false,
+        createdAt: new Date().toISOString()
+      });
+      
+      // Update referrer's stats if exists
+      if (referrer) {
+        const referrerRef = doc(db, usersCollection, referrer);
+        const referrerSnap = await getDoc(referrerRef);
+        
+        if (referrerSnap.exists()) {
+          await updateDoc(referrerRef, {
+            referralRewards: (referrerSnap.data().referralRewards || 0) + REFERRAL_REWARD
+          });
+        }
+      }
+    }
+    
+    return address;
+  } catch (error) {
+    console.error('Error connecting wallet:', error);
+    throw error;
+  }
+};
+
+// Get BNB balance
+export const getBNBBalance = async (address: string) => {
+  const provider = getProvider();
+  return ethers.formatEther(await provider.getBalance(address));
+};
+
+// Purchase package
+export const purchasePackage = async (packageId: string, address: string) => {
+  const selectedPackage = PACKAGES.find(p => p.id === packageId);
+  if (!selectedPackage) throw new Error('Invalid package');
+  
+  const provider = getProvider();
+  const signer = await provider.getSigner();
+  
+  // Convert BNB price to wei
+  const priceInWei = ethers.parseEther(selectedPackage.priceBNB);
+  
+  try {
+    // Send transaction
+    const tx = await signer.sendTransaction({
+      to: '0xYOUR_PRESALE_WALLET_ADDRESS', // Replace with your presale wallet address
+      value: priceInWei
+    });
+    
+    // Wait for transaction to be mined
+    await tx.wait();
+    
+    // Update user record in Firestore
+    const userRef = doc(db, usersCollection, address);
+    await updateDoc(userRef, {
+      package: packageId,
+      tokenBalance: selectedPackage.tokenAmount,
+      refillCount: selectedPackage.refillCount,
+      purchasedAt: new Date().toISOString()
+    });
+    
+    return tx.hash;
+  } catch (error) {
+    console.error('Error purchasing package:', error);
+    throw error;
+  }
+};

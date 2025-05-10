@@ -1,0 +1,67 @@
+# Royal Presale DApp - Installation Guide
+
+Since the Create React App setup is taking longer than expected, here's a manual setup guide to get your project running:
+
+## Step 1: Create a new React TypeScript project
+
+```bash
+# Using Vite (faster alternative to Create React App)
+npm create vite@latest kingbob-dapp -- --template react-ts
+
+# Or using Create React App
+npx create-react-app kingbob-dapp --template typescript
+```
+
+## Step 2: Install dependencies
+
+```bash
+cd kingbob-dapp
+npm install ethers firebase react-router-dom tailwindcss postcss autoprefixer @heroicons/react react-copy-to-clipboard react-hot-toast
+```
+
+## Step 3: Set up Tailwind CSS
+
+```bash
+npx tailwindcss init -p
+```
+
+Then copy the content from `tailwind-config.txt` to `tailwind.config.js` and the content from `index-css.txt` to `src/index.css`.
+
+## Step 4: Create project structure
+
+```bash
+mkdir -p src/components src/utils public/images
+```
+
+## Step 5: Copy component files
+
+Copy all the component files from the .txt files to their respective locations:
+
+- `firebase-config.txt` → `src/firebase.ts`
+- `ethers-helpers.txt` → `src/utils/ethersHelpers.ts`
+- `wallet-connect.txt` → `src/components/WalletConnect.tsx`
+- `packages-section.txt` → `src/components/PackagesSection.tsx`
+- `referral-section.txt` → `src/components/ReferralSection.tsx`
+- `leaderboard-section.txt` → `src/components/LeaderboardSection.tsx`
+- `dashboard-section.txt` → `src/components/DashboardSection.tsx`
+- `admin-panel.txt` → `src/components/AdminPanel.tsx`
+- `hero-section.txt` → `src/components/HeroSection.tsx`
+- `app-tsx.txt` → `src/App.tsx`
+
+## Step 6: Update Firebase configuration
+
+Update the Firebase configuration in `src/firebase.ts` with your project details from the Firebase console.
+
+## Step 7: Add crown icon image
+
+Create or download a crown icon and save it to `public/crown-pattern.png` for the hero section background.
+
+## Step 8: Start the development server
+
+```bash
+npm run dev  # For Vite
+# or
+npm start    # For Create React App
+```
+
+Your Royal Presale DApp should now be up and running!

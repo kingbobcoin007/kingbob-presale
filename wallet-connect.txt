@@ -1,0 +1,77 @@
+// src/components/WalletConnect.tsx
+import React, { useState, useEffect } from 'react';
+import { connectWallet, getBNBBalance } from '../utils/ethersHelpers';
+
+interface WalletConnectProps {
+  onConnect: (address: string) => void;
+}
+
+const WalletConnect: React.FC<WalletConnectProps> = ({ onConnect }) => {
+  const [address, setAddress] = useState<string>('');
+  const [balance, setBalance] = useState<string>('');
+  const [isConnecting, setIsConnecting] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
+
+  useEffect(() => {
+    // Check if wallet was previously connected
+    const checkConnection = async () => {
+      if (window.ethereum && window.ethereum.selectedAddress) {
+        const addr = window.ethereum.selectedAddress;
+        setAddress(addr);
+        onConnect(addr);
+        updateBalance(addr);
+      }
+    };
+
+    checkConnection();
+  }, [onConnect]);
+
+  const updateBalance = async (addr: string) => {
+    try {
+      const bnbBalance = await getBNBBalance(addr);
+      setBalance(parseFloat(bnbBalance).toFixed(4));
+    } catch (err) {
+      console.error('Error fetching balance:', err);
+    }
+  };
+
+  const handleConnect = async () => {
+    setIsConnecting(true);
+    setError('');
+    
+    try {
+      const addr = await connectWallet();
+      setAddress(addr);
+      onConnect(addr);
+      updateBalance(addr);
+    } catch (err: any) {
+      setError(err.message || 'Failed to connect wallet');
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center">
+      {address ? (
+        <div className="flex flex-col items-center">
+          <div className="bg-gradient-to-r from-red-900 to-yellow-600 text-white px-4 py-2 rounded-full shadow-lg">
+            <span className="font-bold">{address.slice(0, 6)}...{address.slice(-4)}</span>
+            {balance && <span className="ml-2 text-yellow-200">{balance} BNB</span>}
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={handleConnect}
+          disabled={isConnecting}
+          className="bg-gradient-to-r from-red-800 to-yellow-500 text-white font-bold py-2 px-6 rounded-full shadow-lg hover:from-red-700 hover:to-yellow-400 transition-all duration-300 transform hover:scale-105 disabled:opacity-70"
+        >
+          {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+        </button>
+      )}
+      {error && <div className="text-red-500 mt-2 text-sm">{error}</div>}
+    </div>
+  );
+};
+
+export default WalletConnect;

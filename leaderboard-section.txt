@@ -1,0 +1,129 @@
+// src/components/LeaderboardSection.tsx
+import React, { useState, useEffect } from 'react';
+import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { db, usersCollection } from '../firebase';
+
+interface LeaderboardUser {
+  address: string;
+  referralCount: number;
+  referralRewards: number;
+}
+
+const LeaderboardSection: React.FC = () => {
+  const [topReferrers, setTopReferrers] = useState<LeaderboardUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'count' | 'value'>('count');
+
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Create query based on active tab
+        const leaderboardQuery = query(
+          collection(db, usersCollection),
+          orderBy(activeTab === 'count' ? 'referralCount' : 'referralRewards', 'desc'),
+          limit(10)
+        );
+        
+        const querySnapshot = await getDocs(leaderboardQuery);
+        const leaderboardData: LeaderboardUser[] = [];
+        
+        querySnapshot.forEach((doc) => {
+          const userData = doc.data() as LeaderboardUser;
+          leaderboardData.push({
+            address: doc.id,
+            referralCount: userData.referralCount || 0,
+            referralRewards: userData.referralRewards || 0
+          });
+        });
+        
+        setTopReferrers(leaderboardData);
+      } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchLeaderboard();
+  }, [activeTab]);
+  
+  return (
+    <section className="py-12 px-4">
+      <div className="max-w-4xl mx-auto">
+        <h2 className="text-3xl font-bold text-center mb-2 text-red-800">Royal Leaderboard</h2>
+        <p className="text-center text-gray-600 mb-8">Top referrers in our presale program</p>
+        
+        <div className="bg-gradient-to-r from-red-50 to-yellow-50 rounded-xl shadow-lg overflow-hidden border border-yellow-200">
+          <div className="flex border-b border-yellow-200">
+            <button
+              className={`flex-1 py-3 font-semibold ${activeTab === 'count' ? 'bg-gradient-to-r from-red-800 to-yellow-600 text-white' : 'bg-transparent text-gray-700'}`}
+              onClick={() => setActiveTab('count')}
+            >
+              Top by Referral Count
+            </button>
+            <button
+              className={`flex-1 py-3 font-semibold ${activeTab === 'value' ? 'bg-gradient-to-r from-red-800 to-yellow-600 text-white' : 'bg-transparent text-gray-700'}`}
+              onClick={() => setActiveTab('value')}
+            >
+              Top by Referral Value
+            </button>
+          </div>
+          
+          {isLoading ? (
+            <div className="p-8 text-center">Loading leaderboard data...</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-yellow-100">
+                    <th className="py-3 px-4 text-left text-gray-700">Rank</th>
+                    <th className="py-3 px-4 text-left text-gray-700">Wallet</th>
+                    <th className="py-3 px-4 text-right text-gray-700">
+                      {activeTab === 'count' ? 'Referrals' : 'Tokens Earned'}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topReferrers.length > 0 ? (
+                    topReferrers.map((user, index) => (
+                      <tr key={user.address} className="border-t border-yellow-100 hover:bg-yellow-50">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center">
+                            <span className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
+                              index < 3 ? 'bg-gradient-to-r from-red-700 to-yellow-500 text-white' : 'bg-gray-200 text-gray-700'
+                            }`}>
+                              {index + 1}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 font-medium">
+                          {user.address.slice(0, 6)}...{user.address.slice(-4)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-bold">
+                          {activeTab === 'count' 
+                            ? user.referralCount
+                            : `${user.referralRewards} Tokens`
+                          }
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={3} className="py-8 text-center text-gray-500">
+                        No referrals data available yet
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default LeaderboardSection;

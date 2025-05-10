@@ -1,0 +1,122 @@
+// src/components/ReferralSection.tsx
+import React, { useState, useEffect } from 'react';
+import { CopyToClipboard } from 'react-copy-to-clipboard';
+import { doc, getDoc } from 'firebase/firestore';
+import { db, usersCollection } from '../firebase';
+import { REFERRAL_REWARD } from '../utils/ethersHelpers';
+
+interface ReferralSectionProps {
+  userAddress: string;
+}
+
+const ReferralSection: React.FC<ReferralSectionProps> = ({ userAddress }) => {
+  const [copied, setCopied] = useState(false);
+  const [referralRewards, setReferralRewards] = useState(0);
+  const [referralCount, setReferralCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const referralLink = userAddress 
+    ? `${window.location.origin}?ref=${userAddress}`
+    : '';
+
+  useEffect(() => {
+    const fetchReferralData = async () => {
+      if (!userAddress) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const userRef = doc(db, usersCollection, userAddress);
+        const userSnap = await getDoc(userRef);
+        
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          setReferralRewards(userData.referralRewards || 0);
+          
+          // You would need a separate query to count referrals
+          // This is simplified for this example
+          setReferralCount(userData.referralCount || 0);
+        }
+      } catch (error) {
+        console.error('Error fetching referral data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchReferralData();
+  }, [userAddress]);
+
+  const handleCopy = () => {
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (!userAddress) {
+    return (
+      <section className="py-10 px-4">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-2xl font-bold text-red-800 mb-4">Referral Program</h2>
+          <p className="text-gray-600">Connect your wallet to get your referral link</p>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="py-10 px-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-gradient-to-r from-red-50 to-yellow-50 rounded-xl shadow-lg p-6 border border-yellow-200">
+          <h2 className="text-2xl font-bold text-red-800 mb-2">Royal Referral Program</h2>
+          <p className="text-gray-600 mb-6">
+            Invite friends and earn ${REFERRAL_REWARD / 10} worth of tokens for each successful referral
+          </p>
+
+          {isLoading ? (
+            <div className="text-center py-4">Loading...</div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="bg-white rounded-lg p-4 shadow">
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Your Rewards</h3>
+                  <p className="text-2xl font-bold text-yellow-600">{referralRewards} Tokens</p>
+                </div>
+                <div className="bg-white rounded-lg p-4 shadow">
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Referral Count</h3>
+                  <p className="text-2xl font-bold text-yellow-600">{referralCount} Friends</p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg p-4 shadow mb-4">
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">Your Referral Link</h3>
+                <div className="flex items-center">
+                  <input
+                    type="text"
+                    value={referralLink}
+                    readOnly
+                    className="flex-1 p-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
+                  />
+                  <CopyToClipboard text={referralLink} onCopy={handleCopy}>
+                    <button className="bg-gradient-to-r from-red-700 to-yellow-500 text-white px-4 py-2 rounded-r-lg hover:from-red-600 hover:to-yellow-400">
+                      {copied ? 'Copied!' : 'Copy'}
+                    </button>
+                  </CopyToClipboard>
+                </div>
+              </div>
+
+              <div className="text-center mt-6">
+                <p className="text-sm text-gray-500">
+                  Share your referral link with friends. When they purchase a package, you'll receive tokens as a reward.
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default ReferralSection;

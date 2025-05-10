@@ -1,0 +1,85 @@
+// @ts-nocheck
+import React, { useState } from 'react';
+import { PACKAGES, purchasePackage } from '../utils/ethersHelpers';
+import { toast } from 'react-hot-toast';
+
+interface PackagesSectionProps {
+  userAddress: string;
+  onPurchase?: () => void;
+}
+
+const PackagesSection: React.FC<PackagesSectionProps> = ({ userAddress, onPurchase }) => {
+  const [isProcessing, setIsProcessing] = useState<string | null>(null);
+
+  const handlePurchase = async (packageId: string) => {
+    if (!userAddress) {
+      toast.error('Please connect your wallet first');
+      return;
+    }
+
+    setIsProcessing(packageId);
+    
+    try {
+      await purchasePackage(packageId, userAddress);
+      toast.success('Purchase successful!');
+      if (onPurchase) onPurchase();
+    } catch (error: any) {
+      console.error('Purchase error:', error);
+      toast.error(error.message || 'Failed to purchase package');
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+  return (
+    <section className="py-12 px-4">
+      <div className="max-w-6xl mx-auto">
+        <h2 className="text-3xl font-bold text-center mb-2 text-red-800">Royal Presale Packages</h2>
+        <p className="text-center text-gray-600 mb-10">Select your preferred package to participate in our presale</p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {PACKAGES.map((pkg) => (
+            <div 
+              key={pkg.id}
+              className="bg-gradient-to-b from-red-50 to-yellow-50 rounded-xl shadow-xl overflow-hidden transform transition-all duration-300 hover:scale-105 border border-yellow-200"
+            >
+              <div className="bg-gradient-to-r from-red-800 to-yellow-600 py-4 px-6 text-white">
+                <h3 className="text-xl font-bold">{pkg.name}</h3>
+                <p className="text-yellow-200 text-sm">${pkg.priceUSD} USD</p>
+              </div>
+              
+              <div className="p-6">
+                <div className="flex justify-between mb-4">
+                  <span className="text-gray-600">Price:</span>
+                  <span className="font-bold">{pkg.priceBNB} BNB</span>
+                </div>
+                
+                <div className="flex justify-between mb-4">
+                  <span className="text-gray-600">Tokens:</span>
+                  <span className="font-bold">{pkg.tokenAmount.toLocaleString()}</span>
+                </div>
+                
+                {pkg.refillCount > 0 && (
+                  <div className="flex justify-between mb-4">
+                    <span className="text-gray-600">Refills:</span>
+                    <span className="font-bold">{pkg.refillCount}</span>
+                  </div>
+                )}
+                
+                <button
+                  onClick={() => handlePurchase(pkg.id)}
+                  disabled={!userAddress || isProcessing === pkg.id}
+                  className="w-full mt-4 bg-gradient-to-r from-red-700 to-yellow-500 text-white py-2 rounded-lg font-bold shadow-md hover:from-red-600 hover:to-yellow-400 transition-all duration-300 disabled:opacity-70"
+                >
+                  {isProcessing === pkg.id ? 'Processing...' : 'Purchase Now'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default PackagesSection;
